@@ -4,20 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/User.dart';
 
 class UserService {
-  // Untuk Chrome di laptop yang menjalankan server.
+  // Ubah URL jika menggunakan emulator Android (10.0.2.2) atau HP fisik (IP lokal komputer)
   static const String baseUrl = 'http://localhost:3000';
 
   static String? token;
   static String? nama;
 
   static Map<String, String> headers() {
-    if (token == null || token!.isEmpty) {
-      throw Exception('Silakan login terlebih dahulu');
-    }
-
     return {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
     };
   }
 
@@ -35,10 +30,8 @@ class UserService {
     );
   }
 
-  static Future<void> login(
-      String email,
-      String password,
-      ) async {
+  // Login sederhana berbasis NIPD berdasarkan data siswa di database
+  static Future<void> login(String nipd) async {
     token = null;
     nama = null;
 
@@ -47,14 +40,9 @@ class UserService {
 
     final response = await http
         .post(
-      Uri.parse('$baseUrl/login'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'email': email.trim(),
-        'password': password,
-      }),
+      Uri.parse('$baseUrl/api/login'), // Pastikan route login Next.js aktif
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'nipd': nipd.trim()}),
     )
         .timeout(const Duration(seconds: 15));
 
@@ -74,16 +62,15 @@ class UserService {
 
   static Future<String> ambilNama() async {
     final prefs = await SharedPreferences.getInstance();
-
-    nama = prefs.getString('nama') ?? '';
-
+    nama = prefs.getString('nama') ?? 'Administrator';
     return nama!;
   }
 
+  // Mengambil seluruh data siswa
   static Future<List<User>> getUsers() async {
     final response = await http
         .get(
-      Uri.parse('$baseUrl/api/users'),
+      Uri.parse('$baseUrl/api/siswa'),
       headers: headers(),
     )
         .timeout(const Duration(seconds: 15));
@@ -94,27 +81,30 @@ class UserService {
     final List data = hasil['data'];
 
     return data.map((item) {
-      return User.fromJson(
-        item as Map<String, dynamic>,
-      );
+      return User.fromJson(item as Map<String, dynamic>);
     }).toList();
   }
 
-  static Future<String> tambahUser(
-      String nama,
-      String email,
-      String password,
-      String status,
-      ) async {
+  // Menambahkan siswa baru sesuai field database
+  static Future<String> tambahSiswa({
+    required String nipd,
+    required String namaLengkap,
+    required String jenisKelamin,
+    required String alamat,
+    required String kelas,
+    required String jurusan,
+  }) async {
     final response = await http
         .post(
-      Uri.parse('$baseUrl/api/users'),
+      Uri.parse('$baseUrl/api/siswa'),
       headers: headers(),
       body: jsonEncode({
-        'nama': nama.trim(),
-        'email': email.trim(),
-        'password': password,
-        'status': status,
+        'nipd': nipd.trim(),
+        'nama_lengkap': namaLengkap.trim(),
+        'jenis_kelamin': jenisKelamin.trim(),
+        'alamat': alamat.trim(),
+        'kelas': kelas.trim(),
+        'jurusan': jurusan.trim(),
       }),
     )
         .timeout(const Duration(seconds: 15));
@@ -122,39 +112,39 @@ class UserService {
     return bacaPesan(response);
   }
 
-  static Future<String> updateUser(
-      int id,
-      String nama,
-      String email,
-      String password,
-      String status,
-      ) async {
-    final data = <String, dynamic>{
-      'nama': nama.trim(),
-      'email': email.trim(),
-      'status': status,
-    };
-
-    // Password kosong berarti tetap memakai password lama.
-    if (password.isNotEmpty) {
-      data['password'] = password;
-    }
-
+  // Memperbarui data siswa berdasarkan ID
+  static Future<String> updateSiswa({
+    required int id,
+    required String nipd,
+    required String namaLengkap,
+    required String jenisKelamin,
+    required String alamat,
+    required String kelas,
+    required String jurusan,
+  }) async {
     final response = await http
         .put(
-      Uri.parse('$baseUrl/api/users/$id'),
+      Uri.parse('$baseUrl/api/siswa/$id'),
       headers: headers(),
-      body: jsonEncode(data),
+      body: jsonEncode({
+        'nipd': nipd.trim(),
+        'nama_lengkap': namaLengkap.trim(),
+        'jenis_kelamin': jenisKelamin.trim(),
+        'alamat': alamat.trim(),
+        'kelas': kelas.trim(),
+        'jurusan': jurusan.trim(),
+      }),
     )
         .timeout(const Duration(seconds: 15));
 
     return bacaPesan(response);
   }
 
-  static Future<String> hapusUser(int id) async {
+  // Menghapus siswa berdasarkan ID
+  static Future<String> hapusSiswa(int id) async {
     final response = await http
         .delete(
-      Uri.parse('$baseUrl/api/users/$id'),
+      Uri.parse('$baseUrl/api/siswa/$id'),
       headers: headers(),
     )
         .timeout(const Duration(seconds: 15));

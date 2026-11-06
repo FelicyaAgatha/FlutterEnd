@@ -2,19 +2,17 @@ import 'package:flutter/material.dart';
 import 'page_dashboard.dart';
 import 'services/user_service.dart';
 
-class PageLogin extends StatefulWidget {
-  const PageLogin({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<PageLogin> createState() => _PageLoginState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _PageLoginState extends State<PageLogin> {
+class _LoginPageState extends State<LoginPage> {
   final formKey = GlobalKey<FormState>();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
+  final nipdController = TextEditingController();
 
-  bool sembunyikanPassword = true;
   bool sedangLogin = false;
   bool loginBerhasil = false;
 
@@ -30,9 +28,9 @@ class _PageLoginState extends State<PageLogin> {
     });
 
     try {
+      // Memanggil fungsi login dengan NIPD
       await UserService.login(
-        emailController.text,
-        passwordController.text,
+        nipdController.text,
       );
 
       if (!mounted) return;
@@ -81,8 +79,7 @@ class _PageLoginState extends State<PageLogin> {
 
   @override
   void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
+    nipdController.dispose();
     super.dispose();
   }
 
@@ -120,7 +117,7 @@ class _PageLoginState extends State<PageLogin> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'MANAJEMEN PENGGUNA',
+                          'APLIKASI SISWA',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
@@ -141,7 +138,7 @@ class _PageLoginState extends State<PageLogin> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Masuk untuk mengelola data pengguna',
+                          'Masukkan NIPD Anda untuk masuk',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.grey,
@@ -150,14 +147,17 @@ class _PageLoginState extends State<PageLogin> {
                         ),
                         const SizedBox(height: 32),
                         TextFormField(
-                          controller: emailController,
+                          controller: nipdController,
                           enabled: !sedangLogin,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
+                          keyboardType: TextInputType.text,
+                          textInputAction: TextInputAction.done,
                           autocorrect: false,
+                          onFieldSubmitted: (value) {
+                            login();
+                          },
                           decoration: InputDecoration(
-                            labelText: 'Email',
-                            hintText: 'nama@email.com',
+                            labelText: 'NIPD',
+                            hintText: 'Contoh: 12345',
                             filled: true,
                             fillColor: Colors.blue.shade50,
                             border: OutlineInputBorder(
@@ -166,65 +166,8 @@ class _PageLoginState extends State<PageLogin> {
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Email wajib diisi';
+                              return 'NIPD wajib diisi';
                             }
-
-                            if (!RegExp(
-                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                            ).hasMatch(value.trim())) {
-                              return 'Format email belum benar';
-                            }
-
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        TextFormField(
-                          controller: passwordController,
-                          enabled: !sedangLogin,
-                          obscureText: sembunyikanPassword,
-                          enableSuggestions: false,
-                          autocorrect: false,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (value) {
-                            login();
-                          },
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            filled: true,
-                            fillColor: Colors.blue.shade50,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            suffixIcon: IconButton(
-                              tooltip: sembunyikanPassword
-                                  ? 'Tampilkan password'
-                                  : 'Sembunyikan password',
-                              onPressed: sedangLogin
-                                  ? null
-                                  : () {
-                                setState(() {
-                                  sembunyikanPassword =
-                                  !sembunyikanPassword;
-                                });
-                              },
-                              icon: Icon(
-                                sembunyikanPassword
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password wajib diisi';
-                            }
-
-                            if (value.length < 6) {
-                              return 'Password minimal 6 karakter';
-                            }
-
                             return null;
                           },
                         ),
@@ -307,7 +250,7 @@ class _PageLoginState extends State<PageLogin> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Kamu berhasil masuk ke aplikasi.',
+                                'Selamat datang kembali!',
                                 style: TextStyle(
                                   color: Colors.green.shade800,
                                 ),

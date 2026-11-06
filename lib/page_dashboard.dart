@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'page_login.dart';
-import 'page_input.dart';
-import 'page_edit.dart';
-import 'page_lihat.dart';
+import 'page_crud.dart';
+import 'LoginPage.dart';
+import 'models/User.dart';
 import 'services/user_service.dart';
 
 class PageDashboard extends StatefulWidget {
@@ -14,131 +13,38 @@ class PageDashboard extends StatefulWidget {
 
 class _PageDashboardState extends State<PageDashboard> {
   String nama = '';
+  List<User> daftarSiswa = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    ambilNama();
+    initData();
   }
 
-  Future<void> ambilNama() async {
-    final hasil = await UserService.ambilNama();
-
-    if (!mounted) return;
-
-    setState(() {
-      nama = hasil;
-    });
-  }
-
-  void bukaHalaman(Widget halaman) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => halaman,
-      ),
-    );
+  Future<void> initData() async {
+    final hasilNama = await UserService.ambilNama();
+    try {
+      final hasilSiswa = await UserService.getUsers();
+      if (!mounted) return;
+      setState(() {
+        nama = hasilNama;
+        daftarSiswa = hasilSiswa;
+        isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+    }
   }
 
   Future<void> keluar() async {
-    final yakin = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Keluar dari akun?'),
-          content: const Text(
-            'Kamu yakin ingin keluar dari aplikasi?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: const Text('Batal'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text(
-                'Keluar',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (yakin != true) return;
-
     await UserService.logout();
-
     if (!mounted) return;
-
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (context) => const PageLogin(),
-      ),
+      MaterialPageRoute(builder: (context) => const LoginPage()),
           (route) => false,
-    );
-  }
-
-  Widget kartuMenu({
-    required String judul,
-    required String keterangan,
-    required IconData ikon,
-    required Color warna,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Colors.blue.shade100),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: warna.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  ikon,
-                  color: warna,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                judul,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF263238),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                keterangan,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -148,146 +54,151 @@ class _PageDashboardState extends State<PageDashboard> {
       backgroundColor: Colors.blue.shade50,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Dashboard Pengguna'),
+        title: const Text('Dashboard Utama Siswa'),
         centerTitle: true,
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Keluar',
+            onPressed: keluar,
+          ),
+        ],
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              constraints: const BoxConstraints(maxWidth: 540),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'MANAJEMEN PENGGUNA',
-                    style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade700, Colors.blue.shade500],
                   ),
-                  const SizedBox(height: 12),
-
-                  // Nama berasal dari akun yang berhasil login.
-                  Text(
-                    nama.isEmpty ? 'Halo!' : 'Halo, $nama!',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade800,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.person, size: 35, color: Colors.blue),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Kelola data pengguna melalui menu di bawah ini.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final lebarKartu = constraints.maxWidth < 280
-                          ? constraints.maxWidth
-                          : (constraints.maxWidth - 12) / 2;
-
-                      return Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SizedBox(
-                            width: lebarKartu,
-                            child: kartuMenu(
-                              judul: 'Lihat Data',
-                              keterangan: 'Tampilkan daftar pengguna.',
-                              ikon: Icons.list_alt,
-                              warna: Colors.blue,
-                              onTap: () {
-                                bukaHalaman(const PageLihat());
-                              },
-                            ),
+                          const Text(
+                            'Selamat Datang,',
+                            style: TextStyle(color: Colors.white70, fontSize: 14),
                           ),
-                          SizedBox(
-                            width: lebarKartu,
-                            child: kartuMenu(
-                              judul: 'Tambah Data',
-                              keterangan: 'Masukkan pengguna baru.',
-                              ikon: Icons.person_add_outlined,
-                              warna: Colors.teal,
-                              onTap: () {
-                                bukaHalaman(const PageInput());
-                              },
-                            ),
-                          ),
-                          SizedBox(
-                            width: lebarKartu,
-                            child: kartuMenu(
-                              judul: 'Edit Data',
-                              keterangan: 'Perbarui data pengguna.',
-                              ikon: Icons.edit_outlined,
-                              warna: Colors.orange,
-                              onTap: () {
-                                bukaHalaman(const PageEdit());
-                              },
-                            ),
-                          ),
-                          SizedBox(
-                            width: lebarKartu,
-                            child: kartuMenu(
-                              judul: 'Hapus Data',
-                              keterangan: 'Pilih data untuk dihapus.',
-                              ikon: Icons.delete_outline,
-                              warna: Colors.red,
-                              onTap: () {
-                                bukaHalaman(const PageLihat());
-                              },
+                          Text(
+                            nama.isEmpty ? 'Admin' : nama,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
-                      );
-                    },
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.blue.shade700,
+                      ),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PageCrud(),
+                          ),
+                        );
+                        initData();
+                      },
+                      icon: const Icon(Icons.settings),
+                      label: const Text('Kelola CRUD'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            '📊 Ringkasan Tabel Siswa',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const PageCrud(),
+                                ),
+                              );
+                              initData();
+                            },
+                            child: const Text('Buka Menu Lengkap'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : daftarSiswa.isEmpty
+                          ? const Text('Belum ada data siswa.')
+                          : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(label: Text('No')),
+                            DataColumn(label: Text('NIPD')),
+                            DataColumn(label: Text('Nama Lengkap')),
+                            DataColumn(label: Text('Kelas')),
+                            DataColumn(label: Text('Jurusan')),
+                          ],
+                          rows: List.generate(daftarSiswa.length, (
+                              index,
+                              ) {
+                            final s = daftarSiswa[index];
+                            return DataRow(
+                              cells: [
+                                DataCell(Text('${index + 1}')),
+                                DataCell(Text(s.nipd)),
+                                DataCell(Text(s.namaLengkap)),
+                                DataCell(Text(s.kelas)),
+                                DataCell(Text(s.jurusan)),
+                              ],
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: Colors.blue.shade100),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            child: TextButton.icon(
-              onPressed: keluar,
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              icon: const Icon(Icons.logout, size: 20),
-              label: const Text('Keluar dari akun'),
-            ),
+            ],
           ),
         ),
       ),
