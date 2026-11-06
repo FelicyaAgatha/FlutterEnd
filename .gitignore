@@ -46,3 +46,14 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Backend Next.js
+/backend-siswa/node_modules/
+/backend-siswa/.next/
+/backend-siswa/out/
+/backend-siswa/build/
+/backend-siswa/.env*
+!/backend-siswa/.env.example
+
+# Pengaturan Android lokal
+/android/local.properties

@@ -1,11 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/User.dart';
 
 class UserService {
-  // Ubah URL jika menggunakan emulator Android (10.0.2.2) atau HP fisik (IP lokal komputer)
-  static const String baseUrl = 'http://localhost:3000';
+  // Untuk Flutter Chrome pada laptop yang sama dengan backend.
+  static const String baseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://localhost:3001',
+);
 
   static String? token;
   static String? nama;
@@ -13,25 +19,49 @@ class UserService {
   static Map<String, String> headers() {
     return {
       'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
     };
   }
 
-  static String bacaPesan(http.Response response) {
-    final hasil = jsonDecode(response.body);
+  static Map<String, dynamic> bacaRespons(http.Response response) {
+    dynamic hasil;
 
-    if (response.statusCode >= 200 &&
-        response.statusCode < 300 &&
-        hasil['status'] == true) {
-      return hasil['message'] as String;
+    try {
+      hasil = jsonDecode(response.body);
+    } on FormatException {
+      throw Exception(
+        'Respons server tidak sesuai. Periksa URL API dan terminal backend.',
+      );
     }
 
-    throw Exception(
-      hasil['message'] ?? 'Permintaan gagal diproses',
-    );
+    if (hasil is! Map<String, dynamic>) {
+      throw Exception('Format respons server tidak valid.');
+    }
+
+    final berhasil = response.statusCode >= 200 &&
+        response.statusCode < 300 &&
+        hasil['status'] == true;
+
+    if (!berhasil) {
+      final pesan = hasil['message'];
+
+      throw Exception(
+        pesan is String ? pesan : 'Permintaan gagal diproses.',
+      );
+    }
+
+    return hasil;
   }
 
-  // Login sederhana berbasis NIPD berdasarkan data siswa di database
-  static Future<void> login(String nipd) async {
+  static String bacaPesan(http.Response response) {
+    final hasil = bacaRespons(response);
+    final pesan = hasil['message'];
+
+    return pesan is String ? pesan : 'Permintaan berhasil.';
+  }
+
+  // Login menggunakan email dan password.
+  static Future<void> login(String email, String password) async {
     token = null;
     nama = null;
 
@@ -40,19 +70,31 @@ class UserService {
 
     final response = await http
         .post(
-      Uri.parse('$baseUrl/api/login'), // Pastikan route login Next.js aktif
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'nipd': nipd.trim()}),
-    )
+          Uri.parse('$baseUrl/api/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email.trim(),
+            'password': password,
+          }),
+        )
         .timeout(const Duration(seconds: 15));
 
-    bacaPesan(response);
+    final hasil = bacaRespons(response);
+    final data = hasil['data'];
 
-    final hasil = jsonDecode(response.body);
-    final data = hasil['data'] as Map<String, dynamic>;
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Data login dari server tidak lengkap.');
+    }
 
-    final tokenLogin = data['token'] as String;
-    final namaLogin = data['nama'] as String;
+    final tokenLogin = data['token'];
+    final namaLogin = data['nama'];
+
+    if (tokenLogin is! String ||
+        tokenLogin.isEmpty ||
+        namaLogin is! String ||
+        namaLogin.isEmpty) {
+      throw Exception('Token atau nama pengguna tidak tersedia.');
+    }
 
     await prefs.setString('nama', namaLogin);
 
@@ -62,30 +104,39 @@ class UserService {
 
   static Future<String> ambilNama() async {
     final prefs = await SharedPreferences.getInstance();
+
     nama = prefs.getString('nama') ?? 'Administrator';
+
     return nama!;
   }
 
-  // Mengambil seluruh data siswa
+  // Nama fungsi dipertahankan agar halaman CRUD lama tetap cocok.
+  // Data yang diambil adalah data siswa.
   static Future<List<User>> getUsers() async {
     final response = await http
         .get(
-      Uri.parse('$baseUrl/api/siswa'),
-      headers: headers(),
-    )
+          Uri.parse('$baseUrl/api/siswa'),
+          headers: headers(),
+        )
         .timeout(const Duration(seconds: 15));
 
-    bacaPesan(response);
+    final hasil = bacaRespons(response);
+    final data = hasil['data'];
 
-    final hasil = jsonDecode(response.body);
-    final List data = hasil['data'];
+    if (data is! List) {
+      throw Exception('Format daftar siswa tidak valid.');
+    }
 
     return data.map((item) {
-      return User.fromJson(item as Map<String, dynamic>);
+      if (item is! Map<String, dynamic>) {
+        throw Exception('Format data siswa tidak valid.');
+      }
+
+      return User.fromJson(item);
     }).toList();
   }
 
-  // Menambahkan siswa baru sesuai field database
+  // Menambahkan siswa.
   static Future<String> tambahSiswa({
     required String nipd,
     required String namaLengkap,
@@ -96,23 +147,23 @@ class UserService {
   }) async {
     final response = await http
         .post(
-      Uri.parse('$baseUrl/api/siswa'),
-      headers: headers(),
-      body: jsonEncode({
-        'nipd': nipd.trim(),
-        'nama_lengkap': namaLengkap.trim(),
-        'jenis_kelamin': jenisKelamin.trim(),
-        'alamat': alamat.trim(),
-        'kelas': kelas.trim(),
-        'jurusan': jurusan.trim(),
-      }),
-    )
+          Uri.parse('$baseUrl/api/siswa'),
+          headers: headers(),
+          body: jsonEncode({
+            'nipd': nipd.trim(),
+            'nama_lengkap': namaLengkap.trim(),
+            'jenis_kelamin': jenisKelamin.trim(),
+            'alamat': alamat.trim(),
+            'kelas': kelas.trim(),
+            'jurusan': jurusan.trim(),
+          }),
+        )
         .timeout(const Duration(seconds: 15));
 
     return bacaPesan(response);
   }
 
-  // Memperbarui data siswa berdasarkan ID
+  // Memperbarui siswa berdasarkan ID.
   static Future<String> updateSiswa({
     required int id,
     required String nipd,
@@ -124,29 +175,29 @@ class UserService {
   }) async {
     final response = await http
         .put(
-      Uri.parse('$baseUrl/api/siswa/$id'),
-      headers: headers(),
-      body: jsonEncode({
-        'nipd': nipd.trim(),
-        'nama_lengkap': namaLengkap.trim(),
-        'jenis_kelamin': jenisKelamin.trim(),
-        'alamat': alamat.trim(),
-        'kelas': kelas.trim(),
-        'jurusan': jurusan.trim(),
-      }),
-    )
+          Uri.parse('$baseUrl/api/siswa/$id'),
+          headers: headers(),
+          body: jsonEncode({
+            'nipd': nipd.trim(),
+            'nama_lengkap': namaLengkap.trim(),
+            'jenis_kelamin': jenisKelamin.trim(),
+            'alamat': alamat.trim(),
+            'kelas': kelas.trim(),
+            'jurusan': jurusan.trim(),
+          }),
+        )
         .timeout(const Duration(seconds: 15));
 
     return bacaPesan(response);
   }
 
-  // Menghapus siswa berdasarkan ID
+  // Menghapus siswa berdasarkan ID.
   static Future<String> hapusSiswa(int id) async {
     final response = await http
         .delete(
-      Uri.parse('$baseUrl/api/siswa/$id'),
-      headers: headers(),
-    )
+          Uri.parse('$baseUrl/api/siswa/$id'),
+          headers: headers(),
+        )
         .timeout(const Duration(seconds: 15));
 
     return bacaPesan(response);
